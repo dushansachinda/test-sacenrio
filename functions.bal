@@ -3,6 +3,7 @@ import ballerina/file;
 import ballerina/regex;
 import ballerina/log;
 import ballerina/time;
+import ballerina/ftp;
 
 // Response type for Vertafore API
 public type VertafoteResponse record {
@@ -10,6 +11,43 @@ public type VertafoteResponse record {
     int recordCount;
     string? startingToken;
 };
+
+// Configuration types
+configurable boolean USE_FTP_OUTPUT = false;
+configurable string sftpHost = "";
+configurable int sftpPort = 22;
+configurable string sftpUsername = "";
+configurable string sftpPassword = "";
+configurable string sftpPath = "";
+configurable string sftpOutputPath = "";
+
+// Upload file to SFTP server
+public function uploadToSFTP(string localFilePath, string remoteFileName,string csvContent) returns error? {
+    if (sftpHost == "" || sftpUsername == "" || sftpPassword == "") {
+        return error("SFTP configuration is incomplete");
+    }
+
+    ftp:ClientConfiguration sftpConfig = {
+        protocol: ftp:SFTP,
+        host: sftpHost,
+        port: sftpPort,
+        auth: {
+            credentials: {
+                username: sftpUsername,
+                password: sftpPassword
+            }
+        }
+    };
+
+    ftp:Client sftpClient = check new (sftpConfig);
+
+    string remotePath = sftpOutputPath + "/" + remoteFileName;
+    log:printInfo(string `   PATH file to SFTP: ${remotePath}`);
+    check sftpClient->put(path = remotePath, content = csvContent);
+
+    log:printInfo(string `   Uploaded file to SFTP: ${remotePath}`);
+    return ();
+}
 
 // Export JSON content to CSV file
 public function exportToCSV(json[] content, string filename) returns error? {
@@ -64,9 +102,25 @@ public function exportToCSV(json[] content, string filename) returns error? {
 
     // Write to file
     string csvContent = string:'join("\n", ...csvLines);
-    check io:fileWriteString(filename, csvContent);
 
-    log:printInfo(string `   Exported ${content.length()} records to CSV`);
+    if (USE_FTP_OUTPUT) {
+        // Write to local temp file first, then upload to SFTP
+        string baseFileName = check file:basename(filename);
+        string tempFile = "./temp_" + baseFileName;
+        //check io:fileWriteString(tempFile, csvContent);
+
+        // Upload to SFTP
+        check uploadToSFTP(tempFile, baseFileName,csvContent);
+
+        // Clean up temp file
+        //check file:remove(tempFile);
+
+        log:printInfo(string `   Exported ${content.length()} records to CSV via SFTP`);
+    } else {
+        // Write to local file system
+        check io:fileWriteString(filename, csvContent);
+        log:printInfo(string `   Exported ${content.length()} records to CSV`);
+    }
 
     return ();
 }
