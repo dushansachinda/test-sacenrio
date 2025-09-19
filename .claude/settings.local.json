@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bal build)",
+      "Bash(java:*)",
+      "Bash(bal run:*)",
+      "Bash(timeout:*)",
+      "Bash(gtimeout:*)",
+      "Bash(lsof:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
