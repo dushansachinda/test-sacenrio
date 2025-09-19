@@ -23,12 +23,14 @@ A complete Ballerina-based solution for integrating with the Vertafore Data Lake
 - **⚙️ Configurable Backends**: Switch between mock and real APIs via `Config.toml`
 - **🔧 Mock Vertafore API**: Complete mock service with realistic data generation
 - **📊 CSV Export**: Automatic JSON-to-CSV conversion with proper escaping and headers
+- **📤 Dual Output Modes**: Export to local filesystem or SFTP server via configuration
 - **🔄 Pagination Support**: Handle large datasets with `starting_token` and `page_size`
 - **📋 Multiple Table Types**: Support for policies, claims, customers, agents, and transactions
 - **⚡ Concurrent Execution**: Service and client run simultaneously using Ballerina futures
 - **🛡️ Error Handling**: Comprehensive error handling and detailed logging
 - **🔄 Dual Modes**: Integration test mode or production data export mode
 - **🎯 Modern Architecture**: Clean separation of concerns with connector, functions, and main logic
+- **🔐 SFTP Support**: Secure file transfer with configurable SFTP credentials
 
 ## Quick Start
 
@@ -86,6 +88,22 @@ API_KEY = "your-actual-api-key"
 BATCH_SIZE = 1000
 ```
 
+### 5. Enable SFTP Export (Optional)
+
+To export CSV files directly to an SFTP server instead of local filesystem:
+
+```toml
+# Enable SFTP output
+USE_FTP_OUTPUT = true
+
+# Configure SFTP settings
+sftpHost = "your-sftp-server.com"
+sftpPort = 22
+sftpUsername = "your-username"
+sftpPassword = "your-password"
+sftpOutputPath = "/remote/csv/directory"
+```
+
 Then run:
 ```bash
 bal run
@@ -114,6 +132,17 @@ MOCK_SERVICE_PORT = 9090
 # Mode Selection
 INTEGRATION_TEST_ENABLED = true
 TEST_PAGE_SIZE = 10
+
+# File Output Configuration
+USE_FTP_OUTPUT = false
+
+# SFTP Configuration
+sftpHost = "ftp.support.wso2.com"
+sftpPort = 22
+sftpUsername = "rosbanksub"
+sftpPassword = "pAa.U!Nb02jds*z6$0i-"
+sftpPath = "/rosbanksub/in"
+sftpOutputPath = "/rosbanksub/csv"
 ```
 
 ### Configuration Options
@@ -127,6 +156,13 @@ TEST_PAGE_SIZE = 10
 | `OUTPUT_DIRECTORY` | CSV export location | `./exports` | `./data/exports` |
 | `INTEGRATION_TEST_ENABLED` | Test mode vs production | `true` | `false` |
 | `TEST_PAGE_SIZE` | Records per test call | `10` | `5` |
+| `USE_FTP_OUTPUT` | Export destination (FTP vs local) | `false` | `true` |
+| `sftpHost` | SFTP server hostname | - | `ftp.support.wso2.com` |
+| `sftpPort` | SFTP server port | `22` | `22` |
+| `sftpUsername` | SFTP username | - | `rosbanksub` |
+| `sftpPassword` | SFTP password | - | `your-password` |
+| `sftpPath` | SFTP input directory | - | `/rosbanksub/in` |
+| `sftpOutputPath` | SFTP output directory for CSV | - | `/rosbanksub/csv` |
 
 ## Architecture
 
@@ -255,6 +291,18 @@ curl "http://localhost:9090/consumer/v1/test-product/tables/policies?page_size=5
 - `claims.csv` - Complete claims dataset with pagination
 - `customers.csv` - Complete customer dataset with pagination
 - Additional files: `{table}_page_{token}.csv` for paginated data
+
+### Output Destinations
+
+**Local Filesystem** (`USE_FTP_OUTPUT = false`):
+- Files saved to `OUTPUT_DIRECTORY` (default: `./exports/`)
+- Direct file system access for immediate processing
+
+**SFTP Server** (`USE_FTP_OUTPUT = true`):
+- Files uploaded directly to configured SFTP server
+- Automatic cleanup of temporary local files
+- Secure transfer with username/password authentication
+- Files saved to `sftpOutputPath` directory on remote server
 
 ### CSV Features
 
