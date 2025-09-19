@@ -5,7 +5,34 @@ import ballerina/lang.runtime;
 
 // Vertafore Data Lake API Mock Server
 // Endpoint: GET /consumer/v1/{product}/tables/{table}
-service /consumer/v1 on new http:Listener(9090) {
+
+// Create listener with basic configuration on port 3000
+listener http:Listener mockListener = new (3000);
+
+// Log when the mock service initializes
+function init() {
+    log:printInfo("🌐 Mock service initializing on port 3000...");
+    log:printInfo("🔗 Listener should be binding to http://localhost:3000");
+}
+
+// Module-level service listener status
+public function getListenerStatus() returns string {
+    return "Mock listener should be active on port 3000";
+}
+
+//service /consumer/v1 on mockListener {
+http:Service consumerservice =  service object {
+
+    // Service attached - log this
+    function init() {
+        log:printInfo("✅ Service /consumer/v1 attached to listener on port 3000");
+    }
+
+    // Health check endpoint
+    resource function get health() returns string {
+        log:printInfo("####Health check called - Mock service is running!");
+        return "Mock service is healthy";
+    }
 
     resource function get [string product]/tables/[string tableName](
         http:Caller caller,
@@ -49,8 +76,7 @@ service /consumer/v1 on new http:Listener(9090) {
         response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
         check caller->respond(response);
     }
-}
-
+};
 // Generate response matching Vertafore Data Lake API structure
 function generateVertaforeResponse(string tableName, string? starting_token, int page_size) returns json {
     // Parse starting position from token

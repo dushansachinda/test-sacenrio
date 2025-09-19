@@ -1,9 +1,25 @@
 import ballerina/log;
 import ballerina/lang.runtime;
+import ballerina/http;
 
 // Main function that handles both mock service and data export/testing
 public function main() returns error? {
     log:printInfo("🚀 Starting Vertafore Integration System...");
+    check mockListener.attach(consumerservice, "/consumer/v1");
+    check mockListener.'start();
+
+    // Give services time to initialize (listeners start before main)
+    log:printInfo("⏳ Waiting for services to initialize...");
+    //runtime:sleep(5.0);
+
+    // Test if service is actually accessible
+    log:printInfo("🔍 Testing direct service access...");
+    error? directTest = testServiceDirectly();
+    if (directTest is error) {
+        log:printError("❌ Direct service test failed - service not accessible");
+    } else {
+        log:printInfo("✅ Direct service test passed!");
+    }
 
     if (INTEGRATION_TEST_ENABLED) {
         // Run integration test (like the previous working version)
@@ -13,7 +29,7 @@ public function main() returns error? {
         future<error?> clientFuture = start runIntegrationTestAsync();
 
         // Keep the main thread alive for the service and worker
-        runtime:sleep(20.0);
+        //runtime:sleep(20.0);
 
         // Wait for the integration test to complete
         error? result = wait clientFuture;
@@ -28,15 +44,39 @@ public function main() returns error? {
         check runDataExport();
         log:printInfo("🎉 Data export completed!");
     }
+    runtime:registerListener(mockListener);
 }
 
 // Async integration test function
 function runIntegrationTestAsync() returns error? {
     // Wait for service to start
     log:printInfo("Waiting for mock service to start...");
-    runtime:sleep(3.0);
+    //runtime:sleep(3.0);
+
+    // Verify service is healthy before proceeding
+    error? healthCheck = verifyServiceHealth();
+    if (healthCheck is error) {
+        log:printError("Mock service health check failed, but continuing with test...");
+    }
 
     return runIntegrationTest();
+}
+
+// Verify that the mock service is responding
+function verifyServiceHealth() returns error? {
+    http:Client healthClient = check new ("http://localhost:3000");
+    http:Response|error response = healthClient->get("/consumer/v1/health");
+
+    if (response is http:Response) {
+        if (response.statusCode == 200) {
+            log:printInfo("✅ Mock service health check passed");
+            return ();
+        } else {
+            return error(string `Health check failed with status: ${response.statusCode}`);
+        }
+    } else {
+        return error(string `Health check request failed: ${response.message()}`);
+    }
 }
 
 // Integration test function (similar to previous working version)
@@ -100,4 +140,23 @@ function runDataExport() returns error? {
     }
 
     return ();
+}
+
+// Test if the service is actually responding
+function testServiceDirectly() returns error? {
+    log:printInfo("🧪 Testing direct connection to http://localhost:3000/consumer/v1/health");
+
+    http:Client testClient = check new ("http://localhost:3000");
+    http:Response|error response = testClient->get("/consumer/v1/health");
+
+    if (response is http:Response) {
+        log:printInfo(string `✅ Direct test successful - Status: ${response.statusCode}`);
+        string|error responseText = response.getTextPayload();
+        if (responseText is string) {
+            log:printInfo(string `📝 Response: ${responseText}`);
+        }
+        return ();
+    } else {
+        return error(string `Direct test failed: ${response.message()}`);
+    }
 }
